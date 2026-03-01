@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
+import { inviteSchema } from "@/lib/validation";
 
 export async function POST(
   req: Request,
@@ -31,14 +32,17 @@ export async function POST(
       );
     }
 
-    const { email, role = "MEMBER" } = await req.json();
+    const body = await req.json();
+    const parsed = inviteSchema.safeParse(body);
 
-    if (!email) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { error: parsed.error.errors[0].message },
         { status: 400 }
       );
     }
+
+    const { email, role } = parsed.data;
 
     // Check if already a member
     const existingUser = await db.user.findUnique({ where: { email } });

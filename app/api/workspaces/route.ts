@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { workspaceSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
@@ -10,24 +11,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, slug } = await req.json();
+    const body = await req.json();
+    const parsed = workspaceSchema.safeParse(body);
 
-    if (!name || !slug) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Name and slug are required" },
+        { error: parsed.error.errors[0].message },
         { status: 400 }
       );
     }
 
-    // Validate slug format
-    if (!/^[a-z0-9-]+$/.test(slug)) {
-      return NextResponse.json(
-        { error: "Slug can only contain lowercase letters, numbers, and hyphens" },
-        { status: 400 }
-      );
-    }
+    const { name, slug } = parsed.data;
 
-    // Check slug uniqueness
     const existing = await db.workspace.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
@@ -36,16 +31,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create workspace with user as owner
     const workspace = await db.workspace.create({
       data: {
         name,
         slug,
         members: {
-          create: {
-            userId: session.user.id,
-            role: "OWNER",
-          },
+          create: { userId: session.user.id, role: "OWNER" },
         },
       },
       include: { members: true },
@@ -73,17 +64,18 @@ export async function GET() {
       include: {
         workspace: {
           include: {
-            members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } },
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true, image: true } },
+              },
+            },
           },
         },
       },
     });
 
     return NextResponse.json(
-      workspaces.map((m) => ({
-        ...m.workspace,
-        role: m.role,
-      }))
+      workspaces.map((m) => ({ ...m.workspace, role: m.role }))
     );
   } catch (error) {
     console.error("Workspace fetch error:", error);

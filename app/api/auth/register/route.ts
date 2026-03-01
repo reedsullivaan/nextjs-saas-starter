@@ -1,26 +1,22 @@
 import { NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import { db } from "@/lib/db";
+import { registerSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const body = await req.json();
+    const parsed = registerSchema.safeParse(body);
 
-    if (!email || !password) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: parsed.error.errors[0].message },
         { status: 400 }
       );
     }
 
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
-    }
+    const { name, email, password } = parsed.data;
 
-    // Check if user already exists
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json(
@@ -29,16 +25,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hash password
     const hashedPassword = await bcryptjs.hash(password, 12);
 
-    // Create user
     const user = await db.user.create({
-      data: {
-        name: name || null,
-        email,
-        password: hashedPassword,
-      },
+      data: { name: name || null, email, password: hashedPassword },
     });
 
     return NextResponse.json(

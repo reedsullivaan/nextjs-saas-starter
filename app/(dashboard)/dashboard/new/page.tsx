@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { SlugInput } from "@/components/slug-input";
 
 export default function NewWorkspacePage() {
   const router = useRouter();
@@ -10,17 +11,6 @@ export default function NewWorkspacePage() {
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  function handleNameChange(value: string) {
-    setName(value);
-    setSlug(
-      value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .slice(0, 40)
-    );
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,43 +52,16 @@ export default function NewWorkspacePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Workspace name</label>
-          <input
-            type="text"
-            placeholder="My Company"
-            value={name}
-            onChange={(e) => handleNameChange(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-            maxLength={50}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">URL slug</label>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) =>
-              setSlug(
-                e.target.value
-                  .toLowerCase()
-                  .replace(/[^a-z0-9-]/g, "")
-                  .slice(0, 40)
-              )
-            }
-            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Only lowercase letters, numbers, and hyphens
-          </p>
-        </div>
+        <SlugInput
+          name={name}
+          slug={slug}
+          onNameChange={setName}
+          onSlugChange={setSlug}
+          nameLabel="Workspace name"
+          namePlaceholder="My Company"
+        />
 
         <button
           type="submit"

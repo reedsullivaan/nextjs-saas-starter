@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SlugInput } from "@/components/slug-input";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -9,17 +10,6 @@ export default function OnboardingPage() {
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  function handleNameChange(value: string) {
-    setName(value);
-    setSlug(
-      value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .slice(0, 40)
-    );
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,41 +53,14 @@ export default function OnboardingPage() {
             <p className="text-sm text-destructive text-center">{error}</p>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Workspace name</label>
-            <input
-              type="text"
-              placeholder="Acme Inc."
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
-              required
-              maxLength={50}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Workspace URL</label>
-            <div className="flex items-center rounded-lg border border-input bg-background overflow-hidden">
-              <span className="px-3 py-2.5 text-sm text-muted-foreground bg-muted border-r border-input">
-                app.example.com/
-              </span>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) =>
-                  setSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/[^a-z0-9-]/g, "")
-                      .slice(0, 40)
-                  )
-                }
-                className="flex-1 px-3 py-2.5 bg-background focus:outline-none"
-                required
-              />
-            </div>
-          </div>
+          <SlugInput
+            name={name}
+            slug={slug}
+            onNameChange={setName}
+            onSlugChange={setSlug}
+            nameLabel="Workspace name"
+            namePlaceholder="Acme Inc."
+          />
 
           <button
             type="submit"

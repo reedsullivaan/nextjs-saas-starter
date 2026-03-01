@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { inviteSchema } from "@/lib/validation";
 
 interface Member {
   id: string;
@@ -10,46 +11,69 @@ interface Member {
   user: { id: string; name: string | null; email: string; image: string | null };
 }
 
+interface Invite {
+  id: string;
+  email: string;
+  role: string;
+}
+
 interface WorkspaceData {
   id: string;
   name: string;
+  slug: string;
   members: Member[];
+  invites: Invite[];
+  role: string;
 }
 
 export default function MembersPage() {
   const params = useParams();
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("MEMBER");
+  const [inviteRole, setInviteRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [inviting, setInviting] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
+  async function loadWorkspace() {
+    const res = await fetch("/api/workspaces");
+    const workspaces = await res.json();
+    const ws = workspaces.find((w: { slug: string }) => w.slug === params.slug);
+    if (ws) {
+      // Fetch full workspace data including invites
+      const detailRes = await fetch(`/api/workspaces/${ws.id}`);
+      if (detailRes.ok) {
+        const detail = await detailRes.json();
+        setWorkspace({ ...detail, role: ws.role });
+      } else {
+        setWorkspace(ws);
+      }
+    }
+  }
+
   useEffect(() => {
-    fetch(`/api/workspaces`)
-      .then((r) => r.json())
-      .then((workspaces) => {
-        const ws = workspaces.find(
-          (w: { slug: string }) => w.slug === params.slug
-        );
-        if (ws) setWorkspace(ws);
-      });
+    loadWorkspace();
   }, [params.slug]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (!workspace) return;
+
+    const parsed = inviteSchema.safeParse({ email: inviteEmail, role: inviteRole });
+    if (!parsed.success) {
+      setMessage(`Error: ${parsed.error.errors[0].message}`);
+      return;
+    }
+
     setInviting(true);
     setMessage("");
 
     try {
-      const res = await fetch(
-        `/api/workspaces/${workspace.id}/invites`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-        }
-      );
+      const res = await fetch(`/api/workspaces/${workspace.id}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      });
 
       const data = await res.json();
 
@@ -58,12 +82,37 @@ export default function MembersPage() {
       } else {
         setMessage(`Invite sent to ${inviteEmail}`);
         setInviteEmail("");
+        loadWorkspace();
       }
     } catch {
       setMessage("Failed to send invite");
     }
 
     setInviting(false);
+  }
+
+  async function handleRemove(memberId: string) {
+    if (!workspace) return;
+    setRemoving(memberId);
+
+    try {
+      const res = await fetch(
+        `/api/workspaces/${workspace.id}/members/${memberId}`,
+        { method: "DELETE" }
+      );
+
+      if (res.ok) {
+        setMessage("Member removed");
+        loadWorkspace();
+      } else {
+        const data = await res.json();
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch {
+      setMessage("Failed to remove member");
+    }
+
+    setRemoving(null);
   }
 
   if (!workspace) {
@@ -73,6 +122,8 @@ export default function MembersPage() {
       </div>
     );
   }
+
+  const isAdmin = workspace.role === "OWNER" || workspace.role === "ADMIN";
 
   return (
     <div className="p-8 max-w-2xl mx-auto space-y-8">
@@ -89,47 +140,50 @@ export default function MembersPage() {
         </p>
       </div>
 
+      {message && (
+        <p
+          className={`text-sm ${
+            message.startsWith("Error") ? "text-destructive" : "text-green-500"
+          }`}
+        >
+          {message}
+        </p>
+      )}
+
       {/* Invite Form */}
-      <form
-        onSubmit={handleInvite}
-        className="rounded-xl border p-6 space-y-4"
-      >
-        <h2 className="font-semibold">Invite a team member</h2>
-        <div className="flex gap-2">
-          <input
-            type="email"
-            placeholder="colleague@company.com"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-          />
-          <select
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="MEMBER">Member</option>
-            <option value="ADMIN">Admin</option>
-          </select>
-          <button
-            type="submit"
-            disabled={inviting}
-            className="rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50 whitespace-nowrap"
-          >
-            {inviting ? "Sending..." : "Send invite"}
-          </button>
-        </div>
-        {message && (
-          <p
-            className={`text-sm ${
-              message.startsWith("Error") ? "text-destructive" : "text-green-500"
-            }`}
-          >
-            {message}
-          </p>
-        )}
-      </form>
+      {isAdmin && (
+        <form
+          onSubmit={handleInvite}
+          className="rounded-xl border p-6 space-y-4"
+        >
+          <h2 className="font-semibold">Invite a team member</h2>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              placeholder="colleague@company.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
+              required
+            />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as "MEMBER" | "ADMIN")}
+              className="rounded-lg border border-input bg-background px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="MEMBER">Member</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            <button
+              type="submit"
+              disabled={inviting}
+              className="rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {inviting ? "Sending..." : "Send invite"}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Current Members */}
       <div className="space-y-3">
@@ -160,14 +214,48 @@ export default function MembersPage() {
               <span className="text-xs bg-secondary px-2 py-1 rounded-full">
                 {member.role}
               </span>
-              {member.role !== "OWNER" && (
-                <button className="text-xs text-muted-foreground hover:text-destructive transition">
-                  Remove
+              {isAdmin && member.role !== "OWNER" && (
+                <button
+                  onClick={() => handleRemove(member.id)}
+                  disabled={removing === member.id}
+                  className="text-xs text-muted-foreground hover:text-destructive transition disabled:opacity-50"
+                >
+                  {removing === member.id ? "Removing..." : "Remove"}
                 </button>
               )}
             </div>
           </div>
         ))}
+
+        {/* Pending Invites */}
+        {workspace.invites && workspace.invites.length > 0 && (
+          <>
+            <h3 className="font-medium text-sm text-muted-foreground pt-2">
+              Pending invites
+            </h3>
+            {workspace.invites.map((invite) => (
+              <div
+                key={invite.id}
+                className="flex items-center justify-between rounded-lg border border-dashed p-4 opacity-60"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm">
+                    ✉
+                  </div>
+                  <div>
+                    <p className="font-medium">{invite.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Invite pending
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs bg-secondary px-2 py-1 rounded-full">
+                  {invite.role}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
