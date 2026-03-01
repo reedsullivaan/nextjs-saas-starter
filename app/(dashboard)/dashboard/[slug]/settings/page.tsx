@@ -25,13 +25,10 @@ export default function WorkspaceSettingsPage() {
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
-    fetch("/api/workspaces")
+    fetch(`/api/workspaces/by-slug/${params.slug}`)
       .then((r) => r.json())
-      .then((workspaces) => {
-        const ws = workspaces.find(
-          (w: { slug: string }) => w.slug === params.slug
-        );
-        if (ws) {
+      .then((ws) => {
+        if (ws.id) {
           setWorkspace(ws);
           setName(ws.name);
           setIsOwner(ws.role === "OWNER");
@@ -88,15 +85,23 @@ export default function WorkspaceSettingsPage() {
   }
 
   async function handleUpgrade() {
+    const priceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
+    if (!priceId) {
+      setMessage("Error: Stripe price ID not configured. Set NEXT_PUBLIC_STRIPE_PRO_PRICE_ID in .env.local");
+      return;
+    }
+
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID }),
+        body: JSON.stringify({ priceId }),
       });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setMessage(data.error || "Failed to create checkout session");
       }
     } catch {
       setMessage("Failed to start checkout");

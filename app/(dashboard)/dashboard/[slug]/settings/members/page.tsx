@@ -36,18 +36,10 @@ export default function MembersPage() {
   const [message, setMessage] = useState("");
 
   async function loadWorkspace() {
-    const res = await fetch("/api/workspaces");
-    const workspaces = await res.json();
-    const ws = workspaces.find((w: { slug: string }) => w.slug === params.slug);
-    if (ws) {
-      // Fetch full workspace data including invites
-      const detailRes = await fetch(`/api/workspaces/${ws.id}`);
-      if (detailRes.ok) {
-        const detail = await detailRes.json();
-        setWorkspace({ ...detail, role: ws.role });
-      } else {
-        setWorkspace(ws);
-      }
+    const res = await fetch(`/api/workspaces/by-slug/${params.slug}`);
+    if (res.ok) {
+      const ws = await res.json();
+      setWorkspace(ws);
     }
   }
 
