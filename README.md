@@ -65,6 +65,9 @@ A SaaS boilerplate with authentication, Stripe billing, multi-tenant workspaces,
 - `POST /api/stripe/checkout` — Create Stripe checkout session
 - `POST /api/stripe/portal` — Create Stripe billing portal session
 - `POST /api/stripe/webhook` — Stripe webhook handler
+- `GET/PATCH/DELETE /api/workspaces/[id]` — Get, update, delete workspace
+- `DELETE /api/workspaces/[id]/members/[memberId]` — Remove member
+- `DELETE /api/user` — Delete account (checks workspace ownership first)
 
 ## Tech Stack
 
@@ -116,7 +119,11 @@ npm run dev
 │   │   ├── invites/[token]/route.ts
 │   │   ├── invites/[token]/accept/route.ts
 │   │   ├── user/route.ts
-│   │   └── stripe/{checkout,portal,webhook}/route.ts
+│   │   ├── stripe/{checkout,portal,webhook}/route.ts
+│   │   └── workspaces/[workspaceId]/
+│   │       ├── route.ts                           # GET/PATCH/DELETE workspace
+│   │       ├── invites/route.ts
+│   │       └── members/[memberId]/route.ts        # Remove member
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
@@ -161,17 +168,36 @@ STRIPE_PRO_PRICE_ID=""
 RESEND_API_KEY=""
 ```
 
+### Developer Experience
+- Zod validation on all API inputs (register, workspace, invite, user update)
+- Shared `SlugInput` component (extracted, not duplicated)
+- `slugify` utility in `lib/validation.ts`
+- Loading skeleton (`loading.tsx`) for dashboard routes
+- Consistent error handling with user-facing messages and proper HTTP codes
+- TypeScript strict mode throughout
+- Cascading deletes in Prisma schema
+
+### Every Button Works
+- Save workspace name → `PATCH /api/workspaces/[id]`
+- Delete workspace → confirmation dialog → `DELETE /api/workspaces/[id]`
+- Upgrade to Pro → Stripe Checkout redirect
+- Manage billing → Stripe Customer Portal redirect
+- Remove member → `DELETE /api/workspaces/[id]/members/[memberId]`
+- Delete account → ownership check → confirmation → `DELETE /api/user`
+- Sign out → NextAuth sign out
+- Send invite → validation → email → database
+
 ## What's NOT Included (Yet)
 
 These are on the roadmap but not built:
 
 - [ ] Command palette (⌘K)
 - [ ] Sidebar navigation layout
-- [ ] Dark mode toggle (Tailwind dark classes are configured but no UI toggle)
+- [ ] Dark mode toggle UI (Tailwind dark classes are configured)
 - [ ] tRPC
 - [ ] File uploads
 - [ ] Activity audit log
-- [ ] Rate limiting
+- [ ] Rate limiting middleware
 
 ## License
 
