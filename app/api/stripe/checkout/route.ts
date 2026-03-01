@@ -1,32 +1,24 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { createCheckoutSession } from "@/lib/stripe";
+import { requireAuth, apiHandler } from "@/lib/api-utils";
 
-export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const POST = apiHandler(async (req) => {
+  const [session, err] = await requireAuth();
+  if (err) return err;
 
-    const { priceId } = await req.json();
+  const { priceId } = await req.json();
 
-    if (!priceId) {
-      return NextResponse.json(
-        { error: "Price ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const url = await createCheckoutSession(session.user.id, priceId);
-
-    return NextResponse.json({ url });
-  } catch (error) {
-    console.error("Checkout error:", error);
+  if (!priceId) {
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
+      { error: "Price ID is required" },
+      { status: 400 }
     );
   }
-}
+
+  const checkoutSession = await createCheckoutSession(
+    session.user.id,
+    priceId
+  );
+
+  return NextResponse.json({ url: checkoutSession.url });
+});

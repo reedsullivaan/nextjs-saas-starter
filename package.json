@@ -11,7 +11,9 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook"
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/client": "^5.17.0",
@@ -43,6 +45,8 @@
     "prisma": "^5.17.0",
     "tailwindcss": "^3.4.6",
     "typescript": "^5.5.3",
-    "@types/bcryptjs": "^2.4.6"
+    "@types/bcryptjs": "^2.4.6",
+    "vitest": "^2.0.0",
+    "@vitejs/plugin-react": "^4.3.0"
   }
 }

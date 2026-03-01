@@ -2,44 +2,37 @@ import { NextResponse } from "next/server";
 import bcryptjs from "bcryptjs";
 import { db } from "@/lib/db";
 import { registerSchema } from "@/lib/validation";
+import { apiHandler } from "@/lib/api-utils";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const parsed = registerSchema.safeParse(body);
+export const POST = apiHandler(async (req) => {
+  const body = await req.json();
+  const parsed = registerSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    const { name, email, password } = parsed.data;
-
-    const existing = await db.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json(
-        { error: "An account with this email already exists" },
-        { status: 409 }
-      );
-    }
-
-    const hashedPassword = await bcryptjs.hash(password, 12);
-
-    const user = await db.user.create({
-      data: { name: name || null, email, password: hashedPassword },
-    });
-
+  if (!parsed.success) {
     return NextResponse.json(
-      { id: user.id, email: user.email, name: user.name },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: parsed.error.errors[0].message },
+      { status: 400 }
     );
   }
-}
+
+  const { name, email, password } = parsed.data;
+
+  const existing = await db.user.findUnique({ where: { email } });
+  if (existing) {
+    return NextResponse.json(
+      { error: "An account with this email already exists" },
+      { status: 409 }
+    );
+  }
+
+  const hashedPassword = await bcryptjs.hash(password, 12);
+
+  const user = await db.user.create({
+    data: { name: name || null, email, password: hashedPassword },
+  });
+
+  return NextResponse.json(
+    { id: user.id, email: user.email, name: user.name },
+    { status: 201 }
+  );
+});
