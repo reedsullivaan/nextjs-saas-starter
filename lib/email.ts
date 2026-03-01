@@ -4,13 +4,22 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = "Hatch Studio <noreply@hatchstudio.dev>";
 
+// Sanitize user input for HTML emails
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export async function sendWelcomeEmail(email: string, name: string) {
   await resend.emails.send({
     from: FROM,
     to: email,
     subject: "Welcome to the platform",
     html: `
-      <h2>Welcome${name ? `, ${name}` : ""}!</h2>
+      <h2>Welcome${name ? `, ${esc(name)}` : ""}!</h2>
       <p>Your account is ready. Here's what you can do next:</p>
       <ul>
         <li>Create your first workspace</li>
@@ -31,10 +40,10 @@ export async function sendInviteEmail(
   await resend.emails.send({
     from: FROM,
     to: email,
-    subject: `${inviterName} invited you to ${workspaceName}`,
+    subject: `${esc(inviterName)} invited you to ${esc(workspaceName)}`,
     html: `
       <h2>You've been invited!</h2>
-      <p><strong>${inviterName}</strong> wants you to join <strong>${workspaceName}</strong>.</p>
+      <p><strong>${esc(inviterName)}</strong> wants you to join <strong>${esc(workspaceName)}</strong>.</p>
       <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}" 
              style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
         Accept Invite
